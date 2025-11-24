@@ -1,5 +1,6 @@
 package edu.farmingdale.threadsexample.countdowntimer
 
+import android.media.MediaPlayer
 import android.util.Log
 import android.widget.NumberPicker
 import androidx.compose.animation.core.LinearEasing
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -25,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,12 +37,37 @@ import java.text.DecimalFormat
 import java.util.Locale
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import edu.farmingdale.threadsexample.R
 
 @Composable
 fun TimerScreen(
     modifier: Modifier = Modifier,
     timerViewModel: TimerViewModel = viewModel()
 ) {
+
+    val context = LocalContext.current
+
+    timerViewModel.onTimerFinished = {
+        MediaPlayer.create(context, R.raw.chicken_bock).start()
+    }
+    val total = timerViewModel.totalMillis
+
+    val targetProgress =
+        if (total > 0L) {
+            timerViewModel.remainingMillis.toFloat() / total.toFloat()
+        } else {
+            0f
+        }
+
+    val animatedProgress by animateFloatAsState(
+        targetValue = targetProgress.coerceIn(0f, 1f),
+        animationSpec = tween(durationMillis = 250,
+            easing = LinearEasing),
+        label = "timerProgress"
+    )
+
+    val isLastTenSeconds = timerViewModel.remainingMillis <= 10_000L
+
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = modifier
@@ -47,12 +75,17 @@ fun TimerScreen(
                 .size(240.dp),
             contentAlignment = Alignment.Center
         ) {
-            if (timerViewModel.isRunning) {
-
+            if (total > 0L) {
+                CircularProgressIndicator(
+                    progress = { animatedProgress },
+                    modifier = Modifier.fillMaxSize()
+                )
             }
             Text(
                 text = timerText(timerViewModel.remainingMillis),
-                fontSize = 40.sp,
+                fontSize = 48.sp,
+                fontWeight = if (isLastTenSeconds) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal,
+                color = if (isLastTenSeconds) Color.Red else Color.Unspecified
             )
         }
         TimePicker(
@@ -77,6 +110,13 @@ fun TimerScreen(
                 modifier = modifier.padding(top = 50.dp)
             ) {
                 Text("Start")
+            }
+
+            Button(
+                onClick = timerViewModel::resetTimer,
+                modifier = modifier.padding(top = 20.dp)
+            ) {
+                Text("Reset")
             }
         }
     }
